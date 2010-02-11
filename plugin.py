@@ -35,6 +35,7 @@ import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
 
 import libpyzmq
+import threading
 import struct
 
 class NagiosLogger(callbacks.Plugin):
@@ -54,42 +55,62 @@ class NagiosLogger(callbacks.Plugin):
         self.socket.bind('tcp://0.0.0.0:12543')
 
         # FIXME: threaded Listener goes here
+        self.tp = self.Listener(irc, self)
+        self.tp.daemon = True
+        self.tp.start()
+
+    #def __del__(self):
+    #    del(self.socket)
+
+    class Listener(threading.Thread):
+        def __init__(self, irc, parent):
+            self.irc = irc
+            self.socket = parent.socket
+            threading.Thread.__init__(self, target=self.ThreadedListener)
+
+        def ThreadedListener(self):
+            while True:
+
+                # Hark around the lack of zmq_poll...
+                import time
+                while True:
+                    #try:
+                    msg = self.socket.recv([libpyzmq.ZMQ_NOBLOCK])
+                    if msg: break
+                    #except
+                    time.sleep(1)
 
 
-    def Listener(irc)
-        while True:
-            msg = self.socket.recv()
+                # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
+                try:
+                    msgarray = msg.split('\t', 5)
+                    server = msgarray[0]
+                    notype = msgarray[1]
+                    stateid = int(msgarray[2])
+                    hostname = msgarray[3]
+                    service = msgarray[4]
+                    message = msgarray[5]
+                except ValueError:
+                    # FIXME: log bad message
+                    pass
+                except IndexError:
+                    # FIXME: log bad message
+                    pass
 
-            # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
-            try:
-                msgarray = msg.split('\t', 5)
-                server = msgarray[0]
-                notype = msgarray[1]
-                stateid = int(msgarray[2])
-                hostname = msgarray[3]
-                service = msgarray[4]
-                message = msgarray[5]
-            except ValueError:
-                # FIXME: log bad message
-                pass
-            except IndexError:
-                # FIXME: log bad message
-                pass
-
-            self.LogEvent(server, irc, notype, stateid, hostname, service, message)
+                self.LogEvent(server, irc, notype, stateid, hostname, service, message)
 
 
-    def LogEvent(self, irc, server, notype, stateid, hostname, service, message):
-        # TODO: Colorization
-        if service is not '':
-            statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
-            msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
-        else:
-            statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
-            msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
+        def LogEvent(self, irc, server, notype, stateid, hostname, service, message):
+            # TODO: Colorization
+            if service is not '':
+                statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+                msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
+            else:
+                statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
+                msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
 
-        # TODO: Add channel parameter
-        irc.reply(msg, prefixNick=False, to='#CHANNEL')
+            # TODO: Add channel parameter
+            self.irc.reply(msg, prefixNick=False, to='#CHANNEL')
 
 
 Class = NagiosLogger
