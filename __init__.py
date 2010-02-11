@@ -29,23 +29,27 @@
 ###
 
 """
-Add a description of the plugin (to be presented to the user inside the wizard)
-here.  This should describe *what* the plugin does.
+This plugin receives alert notifications from Nagios and show them in
+channel. The only configuration needed is running the client on a Nagios
+server. See the client script for more details.
 """
 
 import supybot
 import supybot.world as world
 
+# Make sure zeromq is present
+import libpyzmq
+
 # Use this for the version of this plugin.  You may wish to put a CVS keyword
 # in here if you're keeping the plugin in CVS or some similar system.
-__version__ = ""
+__version__ = "0.01"
 
 # XXX Replace this with an appropriate author or supybot.Author instance.
-__author__ = supybot.authors.unknown
+__author__ = supybot.Author('Thomas Guyot-Sionnest', 'dermoth', 'tguyot@gmail.com')
 
 # This is a dictionary mapping supybot.Author instances to lists of
 # contributions.
-__contributors__ = {}
+__contributors__ = {'dermoth': 'Initial plugin'}
 
 # This is a url where the most recent plugin package can be downloaded.
 __url__ = '' # 'http://supybot.com/Members/yourname/NagiosLogger/download'

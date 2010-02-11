@@ -38,12 +38,13 @@ def configure(advanced):
     # registry as appropriate.
     from supybot.questions import expect, anything, something, yn
     conf.registerPlugin('NagiosLogger', True)
+    listenurl = expect('What is the ZeroMQ URL for receiving alert notifications?')
+    conf.supybot.plugins.NagiosLogger.ZmqURL.setValue(listenurl)
 
 
 NagiosLogger = conf.registerPlugin('NagiosLogger')
-# This is where your configuration variables (if any) should go.  For example:
-# conf.registerGlobalValue(NagiosLogger, 'someConfigVariableName',
-#     registry.Boolean(False, """Help for someConfigVariableName."""))
+#conf.registerGlobalValue(NagiosLogger, 'ZmqURL',
+#    registry.String('', """This is the ZeroMQ URL this plugin will bind to."""))
 
 
 # vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:

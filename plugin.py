@@ -34,11 +34,62 @@ import supybot.plugins as plugins
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
 
+import libpyzmq
+import struct
 
 class NagiosLogger(callbacks.Plugin):
-    """Add the help for "@plugin help NagiosLogger" here
-    This should describe *how* to use this plugin."""
-    threaded = True
+    """This plugin receives alert notifications from Nagios and show them in
+    channel. The only configuration needed is running the client on a Nagios
+    server. See the client script for more details."""
+    threaded = False
+
+    def __init__(self, irc):
+        self.__parent = super(NagiosLogger, self)
+        self.__parent.__init__(irc)
+
+        self.ctx = libpyzmq.Context(1, 1)
+        self.socket = libpyzmq.Socket(self.ctx, libpyzmq.SUB)
+        self.socket.setsockopt(libpyzmq.SUBSCRIBE, '')
+        #self.socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
+        self.socket.bind('tcp://0.0.0.0:12543')
+
+        # FIXME: threaded Listener goes here
+
+
+    def Listener(irc)
+        while True:
+            msg = self.socket.recv()
+
+            # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
+            try:
+                msgarray = msg.split('\t', 5)
+                server = msgarray[0]
+                notype = msgarray[1]
+                stateid = int(msgarray[2])
+                hostname = msgarray[3]
+                service = msgarray[4]
+                message = msgarray[5]
+            except ValueError:
+                # FIXME: log bad message
+                pass
+            except IndexError:
+                # FIXME: log bad message
+                pass
+
+            self.LogEvent(server, irc, notype, stateid, hostname, service, message)
+
+
+    def LogEvent(self, irc, server, notype, stateid, hostname, service, message):
+        # TODO: Colorization
+        if service is not '':
+            statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+            msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
+        else:
+            statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
+            msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
+
+        # TODO: Add channel parameter
+        irc.reply(msg, prefixNick=False, to='#CHANNEL')
 
 
 Class = NagiosLogger
