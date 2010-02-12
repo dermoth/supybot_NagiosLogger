@@ -49,7 +49,10 @@ __author__ = supybot.Author('Thomas Guyot-Sionnest', 'dermoth', 'tguyot@gmail.co
 
 # This is a dictionary mapping supybot.Author instances to lists of
 # contributions.
-__contributors__ = {'dermoth': 'Initial plugin'}
+__contributors__ = {
+        supybot.Author('Ali Afshar', 'aafshar', 'http://unpythonic.blogspot.com/'):
+            ['Functions imported from ExternalControl plugin']
+        }
 
 # This is a url where the most recent plugin package can be downloaded.
 __url__ = '' # 'http://supybot.com/Members/yourname/NagiosLogger/download'
