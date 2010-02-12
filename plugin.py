@@ -33,6 +33,8 @@ from supybot.commands import *
 import supybot.plugins as plugins
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
+import supybot.world as world
+import supybot.ircmsgs as ircmsgs
 
 import libpyzmq
 import threading
@@ -48,69 +50,84 @@ class NagiosLogger(callbacks.Plugin):
         self.__parent = super(NagiosLogger, self)
         self.__parent.__init__(irc)
 
-        self.ctx = libpyzmq.Context(1, 1)
-        self.socket = libpyzmq.Socket(self.ctx, libpyzmq.SUB)
-        self.socket.setsockopt(libpyzmq.SUBSCRIBE, '')
-        #self.socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
-        self.socket.bind('tcp://0.0.0.0:12543')
-
-        # FIXME: threaded Listener goes here
-        self.tp = self.Listener(irc, self)
-        self.tp.daemon = True
+        self.tp = threading.Thread(target=self.Listener)
+        self.tp.setDaemon(True)
         self.tp.start()
 
-    #def __del__(self):
-    #    del(self.socket)
+    def _get_irc(self, network):
+        for irc in world.ircs:
+            if irc.network == network:
+                return irc
 
-    class Listener(threading.Thread):
-        def __init__(self, irc, parent):
-            self.irc = irc
-            self.socket = parent.socket
-            threading.Thread.__init__(self, target=self.ThreadedListener)
+    def _get_person_or_channel(self, irc, personorchannel):
+        if personorchannel.startswith('#'):
+            for channel in irc.state.channels:
+                if channel == personorchannel:
+                    return channel
+        else:
+            return personorchannel
 
-        def ThreadedListener(self):
-            while True:
+    def _get_irc_and_target(self, network, personorchannel):
+        target_irc = self._get_irc(network)
+        if target_irc is None:
+            raise Exception('Not on Network: %s' % network)
+        target = self._get_person_or_channel(target_irc, personorchannel)
+        if target is None:
+            raise Exception('Not on Channel: %s' % personorchannel)
+        return target_irc, target
 
-                # Hark around the lack of zmq_poll...
-                import time
-                while True:
-                    #try:
-                    msg = self.socket.recv([libpyzmq.ZMQ_NOBLOCK])
-                    if msg: break
-                    #except
-                    time.sleep(1)
+    def Listener(self):
+        ctx = libpyzmq.Context(1, 1)
+        socket = libpyzmq.Socket(ctx, libpyzmq.SUB)
+        socket.setsockopt(libpyzmq.SUBSCRIBE, '')
+        #socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
+        socket.bind('tcp://0.0.0.0:12543')
+
+        while True:
+
+            msg = socket.recv()
+            print "msg:", msg
+
+            # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
+            try:
+                msgarray = msg.split('\t', 5)
+                server = msgarray[0]
+                notype = msgarray[1]
+                stateid = int(msgarray[2])
+                hostname = msgarray[3]
+                service = msgarray[4]
+                message = msgarray[5]
+            except ValueError:
+                # FIXME: log bad message
+                pass
+            except IndexError:
+                # FIXME: log bad message
+                pass
+
+            self.LogEvent("server", "notype", 1, "hostname", "service", "message")
+            self.LogEvent(server, notype, stateid, hostname, service, message)
 
 
-                # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
-                try:
-                    msgarray = msg.split('\t', 5)
-                    server = msgarray[0]
-                    notype = msgarray[1]
-                    stateid = int(msgarray[2])
-                    hostname = msgarray[3]
-                    service = msgarray[4]
-                    message = msgarray[5]
-                except ValueError:
-                    # FIXME: log bad message
-                    pass
-                except IndexError:
-                    # FIXME: log bad message
-                    pass
+    def LogEvent(self, server, notype, stateid, hostname, service, message):
+        # Get the IRC object and target FIXME: Try block - will throw an exception if not yet in channel
+        irc, tgt = self._get_irc_and_target('NETWORK', '#CHANNEL')
 
-                self.LogEvent(server, irc, notype, stateid, hostname, service, message)
+        # TODO: Colorization
+        if service is not '':
+            statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+            msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
+        else:
+            statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
+            msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
 
-
-        def LogEvent(self, irc, server, notype, stateid, hostname, service, message):
-            # TODO: Colorization
-            if service is not '':
-                statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
-                msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
-            else:
-                statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
-                msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
-
-            # TODO: Add channel parameter
-            self.irc.reply(msg, prefixNick=False, to='#CHANNEL')
+        # TODO: Add channel parameter
+        # FIXME: Try block - will throw exception if message contains invalid characters
+        # TODO: Split lines and send multiple messages if necessary
+        # FIXME: Use queueMsg()
+        print tgt, msg
+        tgt_msg = ircmsgs.privmsg(tgt, msg)
+        irc.sendMsg(tgt_msg)
+        #irc.(msg, prefixNick=False, to='#CHANNEL')
 
 
 Class = NagiosLogger

@@ -16,9 +16,11 @@ def LogEvent(URL, server, notype, stateid, host, service, message):
     socket.connect(URL)
 
     # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
-    msg = ''.join([server, "\t", notype, "\t", stateid, "\t", host, "\t", service, "\t", message, "\n"])
+    msg = ''.join([server, "\t", notype, "\t", stateid, "\t", host, "\t", service, "\t", message])
     socket.send(msg)
-    socket.flush()
+    # FIXME: Use a reliable mechanism - this is the workaround
+    import time
+    time.sleep(1)
 
 def usage(error=None):
     if error:
@@ -34,7 +36,7 @@ if len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help'):
 elif len(sys.argv) == 7:
     # Host notification
     LogEvent(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], '', sys.argv[6])
-    print "Successfully sent Host Alert event to sys.argv[1]"
+    print "Successfully sent Host Alert event to", sys.argv[1]
 elif len(sys.argv) == 8:
     # Service notification
     LogEvent(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7])
