@@ -78,14 +78,14 @@ class NagiosLogger(callbacks.Plugin):
 
     def Listener(self):
         ctx = libpyzmq.Context(1, 1)
-        socket = libpyzmq.Socket(ctx, libpyzmq.SUB)
-        socket.setsockopt(libpyzmq.SUBSCRIBE, '')
+        socket = libpyzmq.Socket(ctx, libpyzmq.REP)
         #socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
         socket.bind('tcp://0.0.0.0:12543')
 
         while True:
 
             msg = socket.recv()
+            socket.send('Ack!')
             print "msg:", msg
 
             # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
@@ -104,7 +104,6 @@ class NagiosLogger(callbacks.Plugin):
                 # FIXME: log bad message
                 pass
 
-            self.LogEvent("server", "notype", 1, "hostname", "service", "message")
             self.LogEvent(server, notype, stateid, hostname, service, message)
 
 
