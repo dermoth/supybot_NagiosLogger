@@ -144,31 +144,35 @@ class NagiosLogger(callbacks.Plugin):
             self.log.error('NagiosLogger: Getting context failed: %s' % (str(e),))
             return
 
-        # TODO: Colorization
-        # FIXME: Catch KeyError!
-        if service is not '':
-            statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
-            msg = format('%s %s %s %s %s %s',
-                ircutils.mircColor(server, fg='dark grey'),
-                ircutils.mircColor(ircutils.bold(notype + ':'),
-                    fg=NagiosLogger.notype_cmap[notype]),
-                ircutils.mircColor(hostname, fg='black'),
-                ircutils.mircColor(ircutils.underline(service), fg='purple'),
-                ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
-                    NagiosLogger.state_cmap[statemap[stateid]]),
-                ircutils.mircColor(ircutils.underline(message), fg='teal')
-                )
-        else:
-            statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
-            msg = format('%s %s %s %s %s',
-                ircutils.mircColor(server, fg='dark grey'),
-                ircutils.mircColor(ircutils.bold(notype + ':'),
-                    fg=NagiosLogger.notype_cmap[notype]),
-                ircutils.mircColor(hostname, fg='black'),
-                ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
-                    NagiosLogger.state_cmap[statemap[stateid]]),
-                ircutils.mircColor(ircutils.underline(message), fg='teal')
-                )
+        # TODO: Wrap around color map, allowing unknown types
+        try:
+            if service is not '':
+                statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+                msg = format('%s %s %s %s %s %s',
+                    ircutils.mircColor(server, fg='dark grey'),
+                    ircutils.mircColor(ircutils.bold(notype + ':'),
+                        fg=NagiosLogger.notype_cmap[notype]),
+                    ircutils.mircColor(hostname, fg='black'),
+                    ircutils.mircColor(ircutils.underline(service),
+                        fg='purple'),
+                    ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
+                        fg=NagiosLogger.state_cmap[statemap[stateid]]),
+                    ircutils.mircColor(ircutils.underline(message), fg='teal')
+                    )
+            else:
+                statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
+                msg = format('%s %s %s %s %s',
+                    ircutils.mircColor(server, fg='dark grey'),
+                    ircutils.mircColor(ircutils.bold(notype + ':'),
+                        fg=NagiosLogger.notype_cmap[notype]),
+                    ircutils.mircColor(hostname, fg='black'),
+                    ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
+                        fg=NagiosLogger.state_cmap[statemap[stateid]]),
+                    ircutils.mircColor(ircutils.underline(message), fg='teal')
+                    )
+        except KeyError:
+            self.log.error('NagiosLogger: Message contain invalid fields')
+            return
 
         # TODO: Split lines and send multiple messages if necessary
         try:
