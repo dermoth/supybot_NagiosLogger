@@ -79,16 +79,13 @@ class NagiosLogger(callbacks.Plugin):
     def Listener(self):
         ctx = libpyzmq.Context(1, 1)
         socket = libpyzmq.Socket(ctx, libpyzmq.REP)
-        #socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
-        # TODO: Delay bind operation until we can actually send data to the channel?
-        #         Or queue up messages?
+        #socket.bind(self.registryValue('ZmqURL')) # TODO: Doesn't work, help!
         socket.bind('tcp://0.0.0.0:12543')
 
         while True:
 
             msg = socket.recv()
             socket.send('Ack!')
-            print "msg:", msg
 
             # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
             try:
@@ -100,18 +97,22 @@ class NagiosLogger(callbacks.Plugin):
                 service = msgarray[4]
                 message = msgarray[5]
             except ValueError:
-                # FIXME: log bad message
-                pass
+                self.log.error('NagiosLogger: Received message is invalid')
             except IndexError:
-                # FIXME: log bad message
-                pass
+                self.log.error('NagiosLogger: Received message is invalid or incomplete')
 
             self.LogEvent(server, notype, stateid, hostname, service, message)
 
 
     def LogEvent(self, server, notype, stateid, hostname, service, message):
-        # Get the IRC object and target FIXME: Try block - will throw an exception if not yet in channel
-        irc, tgt = self._get_irc_and_target('NETWORK', '#CHANNEL')
+        # Get the IRC object and target (TODO: Queue up messages if not on channel yet?)
+        try:
+            # TODO: add channel parameter
+            irc, tgt = self._get_irc_and_target('NETWORK', '#CHANNEL')
+        except Exception, e:
+            # Likely cause is not being on channel yet
+            self.log.error('NagiosLogger: Getting context failed: ' + str(e))
+            return
 
         # TODO: Colorization
         if service is not '':
@@ -121,14 +122,12 @@ class NagiosLogger(callbacks.Plugin):
             statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
             msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
 
-        # TODO: Add channel parameter
-        # FIXME: Try block - will throw exception if message contains invalid characters
         # TODO: Split lines and send multiple messages if necessary
-        # FIXME: Use queueMsg()
-        print tgt, msg
-        tgt_msg = ircmsgs.privmsg(tgt, msg)
-        irc.queueMsg(tgt_msg)
-        #irc.(msg, prefixNick=False, to='#CHANNEL')
+        try:
+            tgt_msg = ircmsgs.privmsg(tgt, msg)
+            irc.queueMsg(tgt_msg)
+        except AssertionError:
+            self.log.error('NagiosLogger: Sending message failed, this may be caused by invalid characters in it')
 
 
 Class = NagiosLogger
