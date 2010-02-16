@@ -80,6 +80,8 @@ class NagiosLogger(callbacks.Plugin):
         ctx = libpyzmq.Context(1, 1)
         socket = libpyzmq.Socket(ctx, libpyzmq.REP)
         #socket.bind(self.registryValue('ZmqURL')) #Doesn't work, help!
+        # TODO: Delay bind operation until we can actually send data to the channel?
+        #         Or queue up messages?
         socket.bind('tcp://0.0.0.0:12543')
 
         while True:
@@ -125,7 +127,7 @@ class NagiosLogger(callbacks.Plugin):
         # FIXME: Use queueMsg()
         print tgt, msg
         tgt_msg = ircmsgs.privmsg(tgt, msg)
-        irc.sendMsg(tgt_msg)
+        irc.queueMsg(tgt_msg)
         #irc.(msg, prefixNick=False, to='#CHANNEL')
 
 
