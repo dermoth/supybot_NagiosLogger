@@ -45,6 +45,32 @@ class NagiosLogger(callbacks.Plugin):
     server. See the client script for more details."""
     threaded = False
 
+    # Some colormaps
+
+    # Notification type map
+    notype_cmap = {
+            'PROBLEM': 'red',
+            'RECOVERY': 'green',
+            'ACKNOWLEDGEMENT': 'blue',
+            'FLAPPINGSTART': 'red',
+            'FLAPPINGSTOP': 'green',
+            'FLAPPINGDISABLED': 'orange',
+            'DOWNTIMESTART': 'dark grey',
+            'DOWNTIMEEND': 'dark grey',
+            'DOWNTIMECANCELLED': 'orange',
+    }
+
+    # Alert type map
+    state_cmap = {
+            'UP': 'green',
+            'DOWN': 'red',
+            'UNREACHABLE': 'orange',
+            'OK': 'green',
+            'WARNING': 'yellow',
+            'UNKNOWN': 'orange',
+            'CRITICAL': 'red',
+    }
+
     def __init__(self, irc):
         self.__parent = super(NagiosLogger, self)
         self.__parent.__init__(irc)
@@ -119,14 +145,30 @@ class NagiosLogger(callbacks.Plugin):
             return
 
         # TODO: Colorization
+        # FIXME: Catch KeyError!
         if service is not '':
             statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
-            msg = '%s %s: %s %s %s: %s' % (server, notype, hostname, service,
-                                           statemap[stateid], message)
+            msg = format('%s %s %s %s %s %s',
+                ircutils.mircColor(server, fg='dark grey'),
+                ircutils.mircColor(ircutils.bold(notype + ':'),
+                    fg=NagiosLogger.notype_cmap[notype]),
+                ircutils.mircColor(hostname, fg='black'),
+                ircutils.mircColor(ircutils.underline(service), fg='purple'),
+                ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
+                    NagiosLogger.state_cmap[statemap[stateid]]),
+                ircutils.mircColor(ircutils.underline(message), fg='teal')
+                )
         else:
             statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
-            msg = '%s %s: %s %s: %s' % (server, notype, hostname,
-                                        statemap[stateid], message)
+            msg = format('%s %s %s %s %s',
+                ircutils.mircColor(server, fg='dark grey'),
+                ircutils.mircColor(ircutils.bold(notype + ':'),
+                    fg=NagiosLogger.notype_cmap[notype]),
+                ircutils.mircColor(hostname, fg='black'),
+                ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
+                    NagiosLogger.state_cmap[statemap[stateid]]),
+                ircutils.mircColor(ircutils.underline(message), fg='teal')
+                )
 
         # TODO: Split lines and send multiple messages if necessary
         try:
