@@ -28,17 +28,16 @@
 
 ###
 
+import libpyzmq
+import threading
 import supybot.utils as utils
+import supybot.world as world
 from supybot.commands import *
+import supybot.ircmsgs as ircmsgs
 import supybot.plugins as plugins
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
-import supybot.world as world
-import supybot.ircmsgs as ircmsgs
 
-import libpyzmq
-import threading
-import struct
 
 class NagiosLogger(callbacks.Plugin):
     """This plugin receives alert notifications from Nagios and show them in
@@ -50,7 +49,7 @@ class NagiosLogger(callbacks.Plugin):
         self.__parent = super(NagiosLogger, self)
         self.__parent.__init__(irc)
 
-        self.tp = threading.Thread(target=self.Listener)
+        self.tp = threading.Thread(target=self.listener)
         self.tp.setDaemon(True)
         self.tp.start()
 
@@ -76,7 +75,7 @@ class NagiosLogger(callbacks.Plugin):
             raise Exception('Not on Channel: %s' % personorchannel)
         return target_irc, target
 
-    def Listener(self):
+    def listener(self):
         ctx = libpyzmq.Context(1, 1)
         socket = libpyzmq.Socket(ctx, libpyzmq.REP)
         #socket.bind(self.registryValue('ZmqURL')) # TODO: Doesn't work, help!
@@ -87,7 +86,9 @@ class NagiosLogger(callbacks.Plugin):
             msg = socket.recv()
             socket.send('Ack!')
 
-            # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
+            # Format is:
+            # server(str)[Tab]notifi_type(str)[Tab]stateid(int)[Tab]host(str)
+            #   [Tab]service(str)[Tab]message(str)
             try:
                 msgarray = msg.split('\t', 5)
                 server = msgarray[0]
@@ -99,35 +100,41 @@ class NagiosLogger(callbacks.Plugin):
             except ValueError:
                 self.log.error('NagiosLogger: Received message is invalid')
             except IndexError:
-                self.log.error('NagiosLogger: Received message is invalid or incomplete')
+                self.log.error('NagiosLogger: Received message is invalid '
+                               'or incomplete')
 
-            self.LogEvent(server, notype, stateid, hostname, service, message)
+            self.logEvent(server, notype, stateid,
+                          hostname, service, message)
 
 
-    def LogEvent(self, server, notype, stateid, hostname, service, message):
-        # Get the IRC object and target (TODO: Queue up messages if not on channel yet?)
+    def logEvent(self, server, notype, stateid, hostname, service, message):
+        # Get the IRC object and target
+        # TODO: Queue up messages if not on channel yet?
         try:
             # TODO: add channel parameter
-            irc, tgt = self._get_irc_and_target('NETWORK', '#CHANNEL')
+            (irc, tgt) = self._get_irc_and_target('NETWORK', '#CHANNEL')
         except Exception, e:
             # Likely cause is not being on channel yet
-            self.log.error('NagiosLogger: Getting context failed: ' + str(e))
+            self.log.error('NagiosLogger: Getting context failed: %s' % (str(e),))
             return
 
         # TODO: Colorization
         if service is not '':
             statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
-            msg = "%s %s: %s %s %s: %s" % (server, notype, hostname, service, statemap[stateid], message)
+            msg = '%s %s: %s %s %s: %s' % (server, notype, hostname, service,
+                                           statemap[stateid], message)
         else:
             statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
-            msg = "%s %s: %s %s: %s" % (server, notype, hostname, statemap[stateid], message)
+            msg = '%s %s: %s %s: %s' % (server, notype, hostname,
+                                        statemap[stateid], message)
 
         # TODO: Split lines and send multiple messages if necessary
         try:
             tgt_msg = ircmsgs.privmsg(tgt, msg)
             irc.queueMsg(tgt_msg)
         except AssertionError:
-            self.log.error('NagiosLogger: Sending message failed, this may be caused by invalid characters in it')
+            self.log.error('NagiosLogger: Sending message failed, this may '
+                           'be caused by invalid characters in it')
 
 
 Class = NagiosLogger
