@@ -49,10 +49,10 @@ class NagiosLogger(callbacks.Plugin):
 
     # Notification type map
     notype_cmap = {
-            'PROBLEM': 'red',
+            'PROBLEM': 'orange',
             'RECOVERY': 'green',
             'ACKNOWLEDGEMENT': 'blue',
-            'FLAPPINGSTART': 'red',
+            'FLAPPINGSTART': 'orange',
             'FLAPPINGSTOP': 'green',
             'FLAPPINGDISABLED': 'orange',
             'DOWNTIMESTART': 'dark grey',
@@ -149,10 +149,10 @@ class NagiosLogger(callbacks.Plugin):
             if service is not '':
                 statemap = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
                 msg = format('%s %s %s %s %s %s',
-                    ircutils.mircColor(server, fg='dark grey'),
+                    ircutils.mircColor(server, fg='light grey'),
                     ircutils.mircColor(ircutils.bold(notype + ':'),
                         fg=NagiosLogger.notype_cmap[notype]),
-                    ircutils.mircColor(hostname, fg='black'),
+                    ircutils.mircColor(hostname, fg='dark grey'),
                     ircutils.mircColor(ircutils.underline(service),
                         fg='purple'),
                     ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
@@ -162,10 +162,10 @@ class NagiosLogger(callbacks.Plugin):
             else:
                 statemap = {0: 'UP', 1: 'DOWN', 2: 'UNREACHABLE'}
                 msg = format('%s %s %s %s %s',
-                    ircutils.mircColor(server, fg='dark grey'),
+                    ircutils.mircColor(server, fg='light grey'),
                     ircutils.mircColor(ircutils.bold(notype + ':'),
                         fg=NagiosLogger.notype_cmap[notype]),
-                    ircutils.mircColor(hostname, fg='black'),
+                    ircutils.mircColor(hostname, fg='dark grey'),
                     ircutils.mircColor(ircutils.bold(statemap[stateid] + ':'),
                         fg=NagiosLogger.state_cmap[statemap[stateid]]),
                     ircutils.mircColor(ircutils.underline(message), fg='teal')
