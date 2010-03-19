@@ -38,7 +38,7 @@ import supybot
 import supybot.world as world
 
 # Make sure zeromq is present
-import libpyzmq
+import zmq
 
 # Use this for the version of this plugin.  You may wish to put a CVS keyword
 # in here if you're keeping the plugin in CVS or some similar system.

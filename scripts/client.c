@@ -1,5 +1,5 @@
-/*
- * NagiosLogger C Client
+/* NagiosLogger C Client
+ * Version 0.9
  * Author: Thomas Guyot-Sionnest <tguyot@gmail.com>
  *
  * Dev build:

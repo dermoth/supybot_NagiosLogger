@@ -4,15 +4,15 @@
 # Author: Thomas Guyot-Sionnest <tguyot@gmail.com>
 #
 
-import sys, libpyzmq
+import sys, zmq
 
 
 def LogEvent(URL, server, notype, stateid, host, service, message):
     # Raw stateid test - will throw an exception if failed
     int(stateid)
 
-    ctx = libpyzmq.Context(1, 1)
-    socket = libpyzmq.Socket(ctx, libpyzmq.REQ)
+    ctx = zmq.Context(1, 1)
+    socket = zmq.Socket(ctx, zmq.REQ)
     socket.connect(URL)
 
     # Format is: server(str)[Tab]notificationtype(str)[Tab]stateid(int)[Tab]host(str)[Tab]service(str)[Tab]message(str)
@@ -23,7 +23,7 @@ def LogEvent(URL, server, notype, stateid, host, service, message):
     msg = None
     for i in range(10):
         time.sleep(0.1)
-        msg = socket.recv(libpyzmq.NOBLOCK)
+        msg = socket.recv(zmq.NOBLOCK)
         if msg: return True
     return False
 

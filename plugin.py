@@ -28,7 +28,7 @@
 
 ###
 
-import libpyzmq
+import zmq
 import threading
 import supybot.utils as utils
 import supybot.world as world
@@ -102,8 +102,8 @@ class NagiosLogger(callbacks.Plugin):
         return target_irc, target
 
     def listener(self):
-        ctx = libpyzmq.Context(1, 1)
-        socket = libpyzmq.Socket(ctx, libpyzmq.REP)
+        ctx = zmq.Context(1, 1)
+        socket = zmq.Socket(ctx, zmq.REP)
         #socket.bind(self.registryValue('ZmqURL')) # TODO: Doesn't work, help!
         socket.bind('tcp://0.0.0.0:12543')
 
