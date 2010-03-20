@@ -1,5 +1,5 @@
 /* NagiosLogger C Client
- * Version 0.9
+ * Version 0.91
  * Author: Thomas Guyot-Sionnest <tguyot@gmail.com>
  *
  * Dev build:
@@ -10,19 +10,65 @@
  *
  */
 
-/* This is the send timeout in miliseconds */
+/* This is the send timeout in microseconds */
 #define SEND_TIMEOUT 1000000 /* 1 second */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/time.h>
+#include <time.h>
 #include <zmq.h>
+
+
+/* wrapper around zmq_poll which may return zero without reaching the
+ * specified timeout */
+int
+my_zmqpoll(zmq_pollitem_t *items, const int nitems, const long timeout)
+{
+	struct timeval tv, te;
+	int rc, ret;
+	long tmleft;
+
+	/* Populate te with timeout value */
+	te.tv_sec = timeout / 1000000;
+	te.tv_usec = timeout - (te.tv_sec * 1000000);
+
+	rc = gettimeofday(&tv, NULL);
+	assert(rc == 0);
+
+	/* Add current time to the timeout (end time) */
+	te.tv_sec += tv.tv_sec;
+	te.tv_usec += tv.tv_usec;
+	te.tv_sec += te.tv_usec / 1000000;
+	te.tv_usec %= 1000000;
+
+	/* Loop over, return either >0, or 0 after a timeout */
+	tmleft = timeout;
+	while (1) {
+		ret = zmq_poll(items, nitems, tmleft);
+		assert(ret >= 0);
+
+		rc = gettimeofday(&tv, NULL);
+		assert(rc == 0);
+
+		if (ret == 0) {
+			/* Keep on looping unless time's up */
+			if (te.tv_sec < tv.tv_sec ||
+					(te.tv_sec == tv.tv_sec && te.tv_usec <= tv.tv_usec))
+				return ret;
+			tmleft = ((te.tv_sec - tv.tv_sec) * 1000000) + (te.tv_usec - tv.tv_usec);
+		} else {
+			return ret;
+		}
+	}
+}
 
 
 /* Send formatted message to url */
 int
-logevent(char *url, char *message)
+logevent(const char *url, const char *message)
 {
 	int rc, result;
 	void *ctx, *socket;
@@ -55,7 +101,7 @@ logevent(char *url, char *message)
 
 	items[0].socket = socket;
 	items[0].events = ZMQ_POLLIN;
-	rc = zmq_poll(items, 1, SEND_TIMEOUT); /* FIXME: zmq_poll may return 0 before timeout */
+	rc = my_zmqpoll(items, 1, SEND_TIMEOUT);
 	assert(rc >= 0);
 
 	rc = zmq_recv(socket, &query, ZMQ_NOBLOCK);
